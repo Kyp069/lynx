@@ -32,6 +32,11 @@ module main
 	output wire       ramWe,
 	inout  wire[ 7:0] ramDQ,
 	output wire[20:0] ramA
+`elsif ZXD
+   input  wire[ 5:0] joy2,
+	output wire       ramWe,
+	inout  wire[ 7:0] ramDQ,
+	output wire[20:0] ramA
 `elsif SIDI
 	output wire       ramCs,
 	output wire       ramWe,
@@ -177,6 +182,16 @@ assign ramA = { 4'd0, init ? (!rd && !reg7F[4] && a[15:13] <= 2 ? { 1'b0, romA }
 
 wire[7:0] ramQ = ramDQ;
 
+`elsif ZXD
+
+wire ready = 1'b1;
+
+assign ramWe = init ? !(!mreq && !wr && !reg7F[0]) : !ic[1] && !ic[0];
+assign ramDQ = ramWe ? 8'hZZ : init ? q : ic[16] ? vggQ1 : vrbQ1;
+assign ramA = { 4'd0, init ? (!rd && !reg7F[4] && a[15:13] <= 2 ? { 1'b0, romA } : { 1'b1, usrA }) : { 1'b0, iniA } };
+
+wire[7:0] ramQ = ramDQ;
+
 `elsif SIDI
 
 wire sdrRd = !(!mreq && !rd);
@@ -298,7 +313,10 @@ assign d
 	: !mreq &&  reg7F[6] && !reg80[3] ? vggQ2
 	: !mreq &&  reg7F[6] && !reg80[2] ? vrbQ2
 	: !iorq && a[7:0] == 8'h80 ? { keybCol[7:1], reg80[1] ? tape : keybCol[0] }
-	: !iorq && a[6:0] == 8'h7A ? { 2'b00, joy }
+	: !iorq && a[6:0] == 8'h7A ? { 2'b11, joy }
+`ifdef ZXD   
+   : !iorq && a[6:0] == 8'h7B ? { 2'b11, joy2 }
+`endif
 	: 8'hFF;
 
 //-------------------------------------------------------------------------------------------------
