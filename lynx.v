@@ -96,7 +96,8 @@ module lynx
 
 //--- crtc ----------------------------------------------------------------------------------------
 
-	wire crtcCs = !(!iorq && !wr && a[7] && !a[6] && a[2] && a[1]);
+	wire crtcCs = !(!iorq && (!wr || !rd) && a[7] && !a[6] && a[2] && a[1]);   // tambien lecturas (MAME: 86h estado, 87h registro)
+	wire[ 7:0] crtcQ;
 	wire crtcRs = a[0];
 	wire crtcRw = wr;
 	wire crtcDe;
@@ -117,7 +118,7 @@ module lynx
 		.R_nW   (crtcRw ),
 		.RS     (crtcRs ),
 		.DI     (q      ),
-		.DO     (       ),
+		.DO     (crtcQ  ),
 		.HSYNC  (hSync  ),
 		.VSYNC  (vSync  ),
 		.DE     (crtcDe ),
@@ -215,6 +216,7 @@ module lynx
 		: !mreq && reg7F[6] && !reg80[2] ? mem2Q2
 		: !mreq && reg7F[6] && !reg80[3] ? mem3Q2
 		: !iorq && a[6:2] == 5'h14 && !reg58[3] ? fdcQ
+		: !iorq && a[7] && !a[6] && a[2] && a[1] ? crtcQ
 		: !iorq && a[7:0] == 8'h80 ? { col[7:1], reg80[1] ? tape : col[0] }
 		: !iorq && a[6:0] == 8'h7A ? joy0
 		: !iorq && a[6:0] == 8'h7B ? joy1
