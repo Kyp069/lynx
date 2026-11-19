@@ -217,7 +217,7 @@ module lynx
 		: !mreq && reg7F[6] && !reg80[3] ? mem3Q2
 		: !iorq && a[6:2] == 5'h14 && !reg58[3] ? fdcQ
 		: !iorq && a[7] && !a[6] && a[2] && a[1] ? crtcQ
-		: !iorq && a[7:0] == 8'h80 ? { col[7:1], reg80[1] ? tape : col[0] }
+		: !iorq && a[7:0] == 8'h80 ? { col[7:1], crtcMa[13] ? tape : col[0] }   // cinta en d0 con MA13 del 6845 (Jynx, esquema 48K)
 		: !iorq && a[6:0] == 8'h7A ? joy0
 		: !iorq && a[6:0] == 8'h7B ? joy1
 		: 8'hFF;
