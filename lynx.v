@@ -130,7 +130,7 @@ module lynx
 //--- io ------------------------------------------------------------------------------------------
 
 	reg[4:0] reg58;
-	wire wr58 = !iorq && m1 && a[6:0] == 7'h58;
+	wire wr58 = !iorq && !wr && m1 && a[6:0] == 7'h58;
 	always @(posedge clock, negedge reset) if(!reset) reg58 <= 1'd0; else if(pe04M) if(wr58) reg58 <= q[4:0];
 
 	reg[7:0] reg7F;
