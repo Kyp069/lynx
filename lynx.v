@@ -4,6 +4,7 @@ module lynx
 (
 	input  wire       ramM,  // 0: 48K, 1: 96K
 	input  wire       casM,  // 0: off, 1: on
+	input  wire       brk,   // ESC pulsada: /INT (BREAK, como en MAME)
 
 	input  wire       clock, // 48 MHz
 	input  wire       pe06M,
@@ -67,7 +68,7 @@ module lynx
 
 	wire mreq;
 	wire iorq;
-	wire irq = ~cursor;
+	wire irq = ~(cursor | brk);
 	wire m1;
 	wire rd;
 	wire wr;
