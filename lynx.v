@@ -4,6 +4,7 @@ module lynx
 (
 	input  wire       ramM,  // 0: 48K, 1: 96K
 	input  wire       casM,  // 0: off, 1: on
+	input  wire       brk,   // ESC pulsada: /INT (BREAK, como en MAME)
 
 	input  wire       clock, // 48 MHz
 	input  wire       pe06M,
@@ -13,6 +14,8 @@ module lynx
 
 	input  wire       reset,
 	output wire       rfsh,
+	output wire       de,    // display enable del 6845
+	output wire       motor, // rele del motor de la cinta (puerto 80h d1)
 
 	output wire       hSync,
 	output wire       vSync,
@@ -67,7 +70,7 @@ module lynx
 
 	wire mreq;
 	wire iorq;
-	wire irq = ~cursor;
+	wire irq = ~(cursor | brk);
 	wire m1;
 	wire rd;
 	wire wr;
@@ -96,10 +99,12 @@ module lynx
 
 //--- crtc ----------------------------------------------------------------------------------------
 
-	wire crtcCs = !(!iorq && !wr && a[7] && !a[6] && a[2] && a[1]);
+	wire crtcCs = !(!iorq && (!wr || !rd) && a[7] && !a[6] && a[2] && a[1]);   // tambien lecturas (MAME: 86h estado, 87h registro)
+	wire[ 7:0] crtcQ;
 	wire crtcRs = a[0];
 	wire crtcRw = wr;
 	wire crtcDe;
+	assign de = crtcDe;
 	wire cursor;
 
 	wire[13:0] crtcMa;
@@ -117,7 +122,7 @@ module lynx
 		.R_nW   (crtcRw ),
 		.RS     (crtcRs ),
 		.DI     (q      ),
-		.DO     (       ),
+		.DO     (crtcQ  ),
 		.HSYNC  (hSync  ),
 		.VSYNC  (vSync  ),
 		.DE     (crtcDe ),
@@ -130,7 +135,7 @@ module lynx
 //--- io ------------------------------------------------------------------------------------------
 
 	reg[4:0] reg58;
-	wire wr58 = !iorq && m1 && a[6:0] == 7'h58;
+	wire wr58 = !iorq && !wr && m1 && a[6:0] == 7'h58;
 	always @(posedge clock, negedge reset) if(!reset) reg58 <= 1'd0; else if(pe04M) if(wr58) reg58 <= q[4:0];
 
 	reg[7:0] reg7F;
@@ -148,6 +153,7 @@ module lynx
 //--- video ---------------------------------------------------------------------------------------
 
 	wire altg = reg80[4];
+	assign motor = reg80[1];
 
 	wire[7:0] vduDi = vduB[1] ? (!casM || !reg80[3] ? mem3Q1 : 8'h00) : (!casM || !reg80[2] ? mem2Q1 : 8'h00);
 	wire[1:0] vduB;
@@ -173,7 +179,7 @@ module lynx
 //--- bank 0 --------------------------------------------------------------------------------------
 
 	assign mem0A = a;
-	assign mem0R = !mreq && !rd && !reg7F[4] && ((a[15:13] < (ramM ? 3 : 2)) || (a[15:13] == 7 && !reg58[4]));
+	assign mem0R = !mreq && !rd && !reg7F[4] && ((a[15:13] < 3) || (a[15:13] == 7 && !reg58[4]));   // 48K: 4000-5FFF = zocalo vacio, lee FF
 
 //--- bank 1 --------------------------------------------------------------------------------------
 
@@ -188,7 +194,7 @@ module lynx
 
 	assign mem2A2 = { a[14], a[12:0] };
 	assign mem2D2 = q;
-	assign mem2W2 = !mreq && !wr && reg7F[1] && reg80[5];
+	assign mem2W2 = !mreq && !wr && reg7F[1] && reg80[5] && !reg80[2];   // /CASEN corta el /CAS del banco (IC41)
 
 //--- bank 3 --------------------------------------------------------------------------------------
 
@@ -196,7 +202,7 @@ module lynx
 
 	assign mem3A2 = { a[14], a[12:0] };
 	assign mem3D2 = q;
-	assign mem3W2 = !mreq && !wr && reg7F[2] && reg80[5];
+	assign mem3W2 = !mreq && !wr && reg7F[2] && reg80[5] && !reg80[3];   // como el banco 2
 
 //-------------------------------------------------------------------------------------------------
 
@@ -215,7 +221,8 @@ module lynx
 		: !mreq && reg7F[6] && !reg80[2] ? mem2Q2
 		: !mreq && reg7F[6] && !reg80[3] ? mem3Q2
 		: !iorq && a[6:2] == 5'h14 && !reg58[3] ? fdcQ
-		: !iorq && a[7:0] == 8'h80 ? { col[7:1], reg80[1] ? tape : col[0] }
+		: !iorq && a[7] && !a[6] && a[2] && a[1] ? crtcQ
+		: !iorq && a[7:0] == 8'h80 ? { col[7:1], crtcMa[13] ? tape : col[0] }   // cinta en d0 con MA13 del 6845 (Jynx, esquema 48K)
 		: !iorq && a[6:0] == 8'h7A ? joy0
 		: !iorq && a[6:0] == 8'h7B ? joy1
 		: 8'hFF;
