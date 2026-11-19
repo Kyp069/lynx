@@ -14,6 +14,8 @@ module lynx
 
 	input  wire       reset,
 	output wire       rfsh,
+	output wire       de,    // display enable del 6845
+	output wire       motor, // rele del motor de la cinta (puerto 80h d1)
 
 	output wire       hSync,
 	output wire       vSync,
@@ -102,6 +104,7 @@ module lynx
 	wire crtcRs = a[0];
 	wire crtcRw = wr;
 	wire crtcDe;
+	assign de = crtcDe;
 	wire cursor;
 
 	wire[13:0] crtcMa;
@@ -150,6 +153,7 @@ module lynx
 //--- video ---------------------------------------------------------------------------------------
 
 	wire altg = reg80[4];
+	assign motor = reg80[1];
 
 	wire[7:0] vduDi = vduB[1] ? (!casM || !reg80[3] ? mem3Q1 : 8'h00) : (!casM || !reg80[2] ? mem2Q1 : 8'h00);
 	wire[1:0] vduB;
