@@ -189,7 +189,7 @@ module lynx
 
 	assign mem2A2 = { a[14], a[12:0] };
 	assign mem2D2 = q;
-	assign mem2W2 = !mreq && !wr && reg7F[1] && reg80[5];
+	assign mem2W2 = !mreq && !wr && reg7F[1] && reg80[5] && !reg80[2];   // /CASEN corta el /CAS del banco (IC41)
 
 //--- bank 3 --------------------------------------------------------------------------------------
 
@@ -197,7 +197,7 @@ module lynx
 
 	assign mem3A2 = { a[14], a[12:0] };
 	assign mem3D2 = q;
-	assign mem3W2 = !mreq && !wr && reg7F[2] && reg80[5];
+	assign mem3W2 = !mreq && !wr && reg7F[2] && reg80[5] && !reg80[3];   // como el banco 2
 
 //-------------------------------------------------------------------------------------------------
 
