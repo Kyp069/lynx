@@ -12,20 +12,35 @@ module mist
 	input  wire       pe04M,
 	input  wire       reset,
 
-	input  wire       hsync,
-	input  wire       vsync,
+	input  wire       spiCk,
+	input  wire       spiSs1,
+	input  wire       spiSs2,
+	input  wire       spiSs3,
+	input  wire       spiMosi,
+	output wire       spiMiso,
+
 	input  wire       r,
 	input  wire       g,
 	input  wire       b,
+	input  wire       hsync,
+	input  wire       vsync,
 
-	output wire[ 1:0] sync,
+	output wire[63:0] status,
+
 	output wire[23:0] rgb,
+	output wire[ 1:0] sync,
 
 	output wire       ps2kCk,
 	output wire       ps2kD,
 
 	output wire[ 7:0] joy0,
 	output wire[ 7:0] joy1,
+
+	output wire       ready,
+	output wire       dioE,
+	output wire[26:0] dioA,
+	output wire[ 7:0] dioD,
+	output wire       dioW,
 
 	input  wire[ 1:0] fdcA,
 	input  wire[ 7:0] fdcD,
@@ -35,22 +50,10 @@ module mist
 	input  wire       fdcSel,
 	input  wire       fdcSide,
 
-	output wire       romIo,
-	output wire       tzxIo,
-	output wire[31:0] dioSz,
-	output wire[26:0] dioA,
-	output wire[ 7:0] dioD,
-	output wire       dioW,
-
-    output wire       ready,
-	output wire[63:0] status,
-
-	input  wire       spiCk,
-	input  wire       spiSs1,
-	input  wire       spiSs2,
-	input  wire       spiSs3,
-	input  wire       spiMosi,
-	output wire       spiMiso
+	output wire       tapeEar,
+	output wire       tapeBusy,
+	input  wire       tapePlay,
+	input  wire       tapeStop
 );
 //--- confstr--------------------------------------------------------------------------------------
 
@@ -58,17 +61,17 @@ module mist
 	{
 		"Lynx;;",
 		"-;",
-		"F1,TZX,Load TZX;",
-		"O4,Tape sound,Off,On;",
+		"S0U,LDF,Mount LDF;",
+		"S1U,TZX,Mount tape;",
 		"-;",
-		"S0,LDF,Mount LDF;",
 		"O5,Floppy,On,Off;",
+		"O4,Tape sound,Off,On;",
 		"-;",
 		"O12,Model,96K,96K Skorpion,48K;",
 		"O3,Bank 2 CAS enable,On,Off;",
 		"-;",
 		"T0,Reset;",
-		"V,V2.0,2026.01.25;",
+		"V,V2.0,2026.11.24;",
 	};
 
 //--- user io -------------------------------------------------------------------------------------
@@ -77,18 +80,22 @@ module mist
 	wire[31:0] joystick_1;
 	wire       novga;
 
-	wire       sdRd;
-	wire       sdWr;
-	wire       sdAck;
-	wire[31:0] sdLba;
+	wire[ 1:0] sdRd;
+	wire[ 1:0] sdWr;
+	wire       sdAck = sdAckAll && !sdAckX[1];
+	wire[ 1:0] sdAckX;
+	wire       sdAckCf;
+	wire       sdAckAll;
+	wire       sdConf;
+	wire[31:0] sdLba = sdRd[1] ? tapeLba : fdcLba;
 	wire[16:0] sdA;
 	wire[ 7:0] sdD;
 	wire[ 7:0] sdQ;
 	wire       sdW;
-	wire       imgM;
+	wire[ 1:0] imgM;
 	wire[63:0] imgSz;
 
-	user_io #(.STRLEN(171), .SD_IMAGES(1), .FEATURES(32'h2000)) user_io
+	user_io #(.STRLEN(175), .SD_IMAGES(2), .FEATURES(32'h2000)) user_io
 	(
 		.conf_str        (confstr),
 		.conf_addr       (),
@@ -114,12 +121,12 @@ module mist
 		.joystick_4      (),
 		.sd_rd           (sdRd   ),
 		.sd_wr           (sdWr   ),
-		.sd_ack          (sdAck  ),
-		.sd_ack_conf     (),
-		.sd_ack_x        (),
+		.sd_ack          (sdAckAll),
+		.sd_ack_conf     (sdAckCf),
+		.sd_ack_x        (sdAckX ),
 		.sd_cnt          (8'hd0  ),
 		.sd_lba          (sdLba  ),
-		.sd_conf         (),
+		.sd_conf         (sdConf ),
 		.sd_sdhc         (1'b1   ),
 		.sd_buff_addr    (sdA    ),
 		.sd_din          (sdD    ),
@@ -165,10 +172,9 @@ module mist
 
 //--- data io -------------------------------------------------------------------------------------
 
-	wire      dioDw;
 	wire[7:0] dioIx;
 
-	data_io	data_io
+	data_io data_io
 	(
 		.clk_sys       (clock  ),
 		.SPI_SCK       (spiCk  ),
@@ -177,7 +183,7 @@ module mist
 		.SPI_DI        (spiMosi),
 		.SPI_DO        (spiMiso),
 		.clkref_n      (1'b0   ),
-		.ioctl_download(dioDw  ),
+		.ioctl_download(dioE   ),
 		.ioctl_addr    (dioA   ),
 		.ioctl_din     (8'd0   ),
 		.ioctl_dout    (dioD   ),
@@ -185,7 +191,7 @@ module mist
 		.ioctl_upload  (),
 		.ioctl_index   (dioIx  ),
 		.ioctl_fileext (),
-		.ioctl_filesize(dioSz  ),
+		.ioctl_filesize(),
 		.QCSn          (1'b1),
 		.QSCK          (1'b1),
 		.QDAT          (4'hF),
@@ -208,11 +214,12 @@ module mist
 //--- fdc -----------------------------------------------------------------------------------------
 
 	reg imgMp;
-	always @(posedge clock) imgMp <= imgM;
+	always @(posedge clock) imgMp <= imgM[0];
 
 	reg fdcDisk;
-	always @(posedge clock) if(imgM && !imgMp) fdcDisk <= |imgSz;
+	always @(posedge clock) if(imgM[0] && !imgMp) fdcDisk <= |imgSz;
 
+	wire[31:0] fdcLba;
 	wire fdcRdy = fdcSel && fdcDisk;
 	wire fdcBusy;
 	wire fdcPrep;
@@ -237,13 +244,13 @@ module mist
 		.side               (fdcSide ), // input        side,
 		.ready              (fdcRdy  ), // input        ready,
 		// SD access (RWMODE == 1)
-		.img_mounted        (imgM    ), // input        img_mounted, 			// signaling that new image has been mounted
+		.img_mounted        (imgM[0] ), // input        img_mounted, 			// signaling that new image has been mounted
 		.img_mounted_overide(1'b0    ), // input        img_mounted_overide,   // SRH - used to always load img_size (& layout) per clock [img_mounted occurs at higher level]
 		.img_size           (imgSz   ), // input [63:0] img_size,    // size of image in bytes.
 		.prepare            (        ), // output       prepare,
-		.sd_lba             (sdLba   ), // output[31:0] sd_lba,
-		.sd_rd              (sdRd    ), // output reg   sd_rd,
-		.sd_wr              (sdWr    ), // output reg   sd_wr,
+		.sd_lba             (fdcLba  ), // output[31:0] sd_lba,
+		.sd_rd              (sdRd[0] ), // output reg   sd_rd,
+		.sd_wr              (sdWr[0] ), // output reg   sd_wr,
 		.sd_ack             (sdAck   ), // input        sd_ack,
 		.sd_buff_addr       (sdA[8:0]), // input  [8:0] sd_buff_addr,
 		.sd_buff_dout       (sdQ     ), // input  [7:0] sd_buff_dout,
@@ -257,6 +264,31 @@ module mist
 		.buff_addr          (        ), // output[19:0] buff_addr,	  // buffer RAM address
 		.buff_read          (        ), // output       buff_read,	  // buffer RAM read enable
 		.buff_din           ( 8'd0   )  // input  [7:0] buff_din,     // buffer RAM data input
+	);
+
+//--- tape ----------------------------------------------------------------------------------------
+
+	wire[31:0] tapeLba;
+
+	tape #(.MS(96000), .TS(16)) tape
+	(
+		.clock       (clock   ),
+		.img_mounted (imgM[1] ),
+		.img_size    (imgSz[31:0]),
+		.sd_lba      (tapeLba ),
+		.sd_rd       (sdRd[1] ),
+		.sd_ack      (sdAckX[1]),
+		.sd_buff_addr(sdA[8:0]),
+		.sd_buff_dout(sdQ     ),
+		.sd_buff_wr  (sdW     ),
+		.play        (tapePlay),
+		.stop        (tapeStop),
+		.stop48      (1'b0    ),
+		.busy        (tapeBusy),
+		.tape        (tapeEar ),
+		.isPzx       (        ),
+		.isTap       (        ),
+		.loading     (        )
 	);
 
 //--- osd -----------------------------------------------------------------------------------------
@@ -300,6 +332,8 @@ module mist
 
 //-------------------------------------------------------------------------------------------------
 
+	wire romIo = dioE && dioIx[5:0] == 0;
+
 	reg[1:0] status21;
 	always @(posedge clock) status21 <= status[2:1];
 
@@ -314,9 +348,6 @@ module mist
 
 	assign joy0 = ~{ 2'b00, joystick_1[4], 1'b0, joystick_1[0], joystick_1[1], joystick_1[2], joystick_1[3] };
 	assign joy1 = ~{ 2'b00, joystick_0[4], 1'b0, joystick_0[0], joystick_0[1], joystick_0[2], joystick_0[3] };
-
-	assign romIo = dioDw && dioIx[5:0] == 0;
-	assign tzxIo = dioDw && dioIx[5:0] == 1;
 
 	assign ready = romReady && modelReady;
 
