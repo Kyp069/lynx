@@ -19,7 +19,7 @@ module mist
 	input  wire       b,
 
 	output wire[ 1:0] sync,
-	output wire[23:0] rgb,
+	output wire[RGBW*3-1:0] rgb,
 
 	output wire       ps2kCk,
 	output wire       ps2kD,
@@ -42,7 +42,7 @@ module mist
 	output wire[ 7:0] dioD,
 	output wire       dioW,
 
-    output wire       ready,
+	output wire       ready,
 	output wire[63:0] status,
 
 	input  wire       spiCk,
