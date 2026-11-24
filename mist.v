@@ -50,10 +50,11 @@ module mist
 	input  wire       fdcSel,
 	input  wire       fdcSide,
 
-	output wire       tapeEar,
-	output wire       tapeBusy,
-	input  wire       tapePlay,
-	input  wire       tapeStop
+	output wire       tzxEar,
+	output wire       tzxBusy,
+	input  wire       tzxPlay,
+	input  wire       tzxStop,
+	input  wire       tzxMotor
 );
 //--- confstr--------------------------------------------------------------------------------------
 
@@ -87,7 +88,7 @@ module mist
 	wire       sdAckCf;
 	wire       sdAckAll;
 	wire       sdConf;
-	wire[31:0] sdLba = sdRd[1] ? tapeLba : fdcLba;
+	wire[31:0] sdLba = sdRd[1] ? tzxLba : fdcLba;
 	wire[16:0] sdA;
 	wire[ 7:0] sdD;
 	wire[ 7:0] sdQ;
@@ -266,28 +267,33 @@ module mist
 		.buff_din           ( 8'd0   )  // input  [7:0] buff_din,     // buffer RAM data input
 	);
 
-//--- tape ----------------------------------------------------------------------------------------
+//--- tzx -----------------------------------------------------------------------------------------
 
-	wire[31:0] tapeLba;
+	wire[31:0] tzxLba;
 
-	tape #(.MS(96000), .TS(16)) tape
+	tzx #(.TZX_MS(96000)) tzx
 	(
 		.clock       (clock   ),
+		.ce          (1'b1    ),
 		.img_mounted (imgM[1] ),
 		.img_size    (imgSz[31:0]),
-		.sd_lba      (tapeLba ),
+		.sd_lba      (tzxLba  ),
 		.sd_rd       (sdRd[1] ),
 		.sd_ack      (sdAckX[1]),
 		.sd_buff_addr(sdA[8:0]),
 		.sd_buff_dout(sdQ     ),
 		.sd_buff_wr  (sdW     ),
-		.play        (tapePlay),
-		.stop        (tapeStop),
+		.play        (tzxPlay ),
+		.stop        (tzxStop ),
+		.rewind      (tzxPlay ),
+		.motor       (tzxMotor),
 		.stop48      (1'b0    ),
-		.busy        (tapeBusy),
-		.tape        (tapeEar ),
-		.isPzx       (        ),
-		.isTap       (        ),
+		.busy        (tzxBusy ),
+		.tape        (tzxEar  ),
+		.playing     (        ),
+		.valid       (        ),
+		.pos         (        ),
+		.size        (        ),
 		.loading     (        )
 	);
 
