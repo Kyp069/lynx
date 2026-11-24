@@ -27,8 +27,8 @@ module mist
 
 	output wire[63:0] status,
 
-	output wire[23:0] rgb,
 	output wire[ 1:0] sync,
+	output wire[RGBW*3-1:0] rgb,
 
 	output wire       ps2kCk,
 	output wire       ps2kD,
@@ -124,7 +124,7 @@ module mist
 		.sd_ack          (sdAckAll),
 		.sd_ack_conf     (sdAckCf),
 		.sd_ack_x        (sdAckX ),
-		.sd_cnt          (8'hd0  ),
+		.sd_cnt          (8'd0   ),
 		.sd_lba          (sdLba  ),
 		.sd_conf         (sdConf ),
 		.sd_sdhc         (1'b1   ),
