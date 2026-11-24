@@ -49,8 +49,8 @@ always @(posedge clock) if(strb) begin
 		endcase
 	else
 		case(code)
-			8'h7E: break <= make; // scroll lock
 			8'h01: F9    <= make; // F9
+			8'h7E: break <= make; // scroll lock
 
 			8'h16: key[0][0] <= make; // 1
 	//		8'h00: key[0][1] <= make; // 

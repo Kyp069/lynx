@@ -14,16 +14,17 @@ module lynx
 	input  wire       reset,
 	output wire       rfsh,
 
-	output wire       blank,
-	output wire       hSync,
-	output wire       vSync,
 	output wire       r,
 	output wire       g,
 	output wire       b,
+	output wire       blank,
+	output wire       hSync,
+	output wire       vSync,
+
+	output wire[ 5:0] sound,
 
 	input  wire       tape,
 	output wire       motor,
-	output wire[ 5:0] sound,
 
 	output wire[ 3:0] row,
 	input  wire[ 7:0] col,
@@ -118,7 +119,7 @@ module lynx
 		.RS     (crtcRs ),
 		.DI     (q      ),
 		.DO     (crtcQ  ),
-		.DE     (de     ),
+		.DE     (crtcDe ),
 		.HSYNC  (hSync  ),
 		.VSYNC  (vSync  ),
 		.FIELD  (       ),
@@ -184,17 +185,6 @@ module lynx
 
 //--- cpu -----------------------------------------------------------------------------------------
 
-	assign row = a[11:8];
-
-	assign motor = reg80[1];
-
-	assign fdcA = a[1:0];
-	assign fdcD = q;
-	assign fdcR = !iorq && m1 && a[6:2] == 5'h14;
-	assign fdcW = !iorq && m1 && a[6:2] == 5'h15;
-	assign fdcSel = !reg58[3] && reg58[1:0] == 0;
-	assign fdcSide = reg58[2];
-
 	wire[7:0] d
 		= mem0R ? mem0Q
 		: mem1R ? mem1Q
@@ -225,10 +215,6 @@ module lynx
 		.q      (q      )
 	);
 
-//--- keyboard ------------------------------------------------------------------------------------
-
-	assign row = a[11:8];
-
 //--- floppy --------------------------------------------------------------------------------------
 
 	assign fdcA = a[1:0];
@@ -237,6 +223,11 @@ module lynx
 	assign fdcW = !iorq && m1 && a[6:2] == 5'h15;
 	assign fdcSel = !reg58[3] && reg58[1:0] == 0;
 	assign fdcSide = reg58[2];
+
+//-------------------------------------------------------------------------------------------------
+
+	assign row = a[11:8];
+	assign motor = reg80[1];
 
 //-------------------------------------------------------------------------------------------------
 endmodule

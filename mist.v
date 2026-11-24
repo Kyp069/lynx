@@ -81,7 +81,7 @@ module mist
 	wire       sdWr;
 	wire       sdAck;
 	wire[31:0] sdLba;
-	wire[ 8:0] sdA;
+	wire[16:0] sdA;
 	wire[ 7:0] sdD;
 	wire[ 7:0] sdQ;
 	wire       sdW;
@@ -117,6 +117,7 @@ module mist
 		.sd_ack          (sdAck  ),
 		.sd_ack_conf     (),
 		.sd_ack_x        (),
+		.sd_cnt          (8'hd0  ),
 		.sd_lba          (sdLba  ),
 		.sd_conf         (),
 		.sd_sdhc         (1'b1   ),
@@ -244,7 +245,7 @@ module mist
 		.sd_rd              (sdRd    ), // output reg   sd_rd,
 		.sd_wr              (sdWr    ), // output reg   sd_wr,
 		.sd_ack             (sdAck   ), // input        sd_ack,
-		.sd_buff_addr       (sdA     ), // input  [8:0] sd_buff_addr,
+		.sd_buff_addr       (sdA[8:0]), // input  [8:0] sd_buff_addr,
 		.sd_buff_dout       (sdQ     ), // input  [7:0] sd_buff_dout,
 		.sd_buff_din        (sdD     ), // output [7:0] sd_buff_din,
 		.sd_buff_wr         (sdW     ), // input        sd_buff_wr,
